@@ -31,7 +31,12 @@ else:
         "Or insert an URL:",
         placeholder="Copy URL here",
     )
-
+    
+    if 'messages' not in st.session_state:
+        st.session_state['messages'] = []
+    if 'url_summary' not in st.session_state:
+        st.session_state['url_summary'] = None
+    
     st.session_state['url_summary'] = summarize_url(question_url)
     if st.session_state['url_summary']:
         st.session_state['messages'].append({
