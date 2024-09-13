@@ -1,4 +1,3 @@
-# Show title and description.
 import streamlit as st
 from openai import OpenAI
 from bs4 import BeautifulSoup
@@ -28,7 +27,7 @@ if not openai_api_key:
 else:
 
     question_url = st.text_area(
-        "Or insert an URL:",
+        "Or insert a URL:",
         placeholder="Copy URL here",
     )
     
@@ -36,13 +35,17 @@ else:
         st.session_state['messages'] = []
     if 'url_summary' not in st.session_state:
         st.session_state['url_summary'] = None
+    if 'summary_added' not in st.session_state:
+        st.session_state['summary_added'] = False
     
-    st.session_state['url_summary'] = summarize_url(question_url)
-    if st.session_state['url_summary']:
-        st.session_state['messages'].append({
-            "role": "assistant",
-            "content": f"Summary of the URL: {st.session_state['url_summary']}"
-        })
+    if question_url and not st.session_state['summary_added']:
+        st.session_state['url_summary'] = summarize_url(question_url)
+        if st.session_state['url_summary']:
+            st.session_state['messages'].append({
+                "role": "assistant",
+                "content": f"Summary of the URL: {st.session_state['url_summary']}"
+            })
+            st.session_state['summary_added'] = True  # Ensure summary is only added once
     
     # Sidebar for memory management options.
     memory_option = st.sidebar.radio(
@@ -52,10 +55,6 @@ else:
 
     # Create an OpenAI client.
     client = OpenAI(api_key=openai_api_key)
-
-    # Create a session state variable to store the chat messages.
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
 
     # Display the existing chat messages.
     for message in st.session_state.messages:
