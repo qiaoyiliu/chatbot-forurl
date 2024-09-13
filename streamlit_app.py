@@ -117,7 +117,10 @@ def display(selected_llm):
                         stream=True,
                         temperature=0.5,
                     )
-                    response_content = "".join([message["choices"][0]["message"]["content"] for message in stream])
+                    response_content = ""
+                    for chunk in stream:
+                        if hasattr(chunk, "choices") and len(chunk.choices) > 0:
+                            response_content += chunk.choices[0].delta.get("content", "")
                     st.session_state.messages.append({"role": "assistant", "content": response_content})
 
                 # GPT-4o-2024-05-13 stream response
@@ -129,7 +132,10 @@ def display(selected_llm):
                         stream=True,
                         temperature=0.5,
                     )
-                    response_content = "".join([message["choices"][0]["message"]["content"] for message in stream])
+                    response_content = ""
+                    for chunk in stream:
+                        if hasattr(chunk, "choices") and len(chunk.choices) > 0:
+                            response_content += chunk.choices[0].delta.get("content", "")
                     st.session_state.messages.append({"role": "assistant", "content": response_content})
 
                 # Claude-3-opus response
