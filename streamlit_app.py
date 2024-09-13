@@ -38,11 +38,12 @@ else:
     if 'summary_added' not in st.session_state:
         st.session_state['summary_added'] = False
     
+    # Summarize URL only once and store it in messages
     if question_url and not st.session_state['summary_added']:
         st.session_state['url_summary'] = summarize_url(question_url)
         if st.session_state['url_summary']:
-            st.session_state['messages'].append({
-                "role": "assistant",
+            st.session_state['messages'].insert(0, {  # Insert the summary at the start
+                "role": "system",  # Using system role to indicate it's part of memory
                 "content": f"Summary of the URL: {st.session_state['url_summary']}"
             })
             st.session_state['summary_added'] = True  # Ensure summary is only added once
@@ -71,19 +72,34 @@ else:
 
         # Adjust memory based on the user's selection.
         if memory_option == "Last 5 questions":
-            # Keep only the last 5 user and assistant messages.
-            st.session_state.messages = st.session_state.messages[-10:]
+            # Ensure the summary (system message) remains in memory even when trimming
+            user_messages = [msg for msg in st.session_state.messages if msg["role"] == "user"]
+            assistant_messages = [msg for msg in st.session_state.messages if msg["role"] == "assistant"]
+            summary_message = [msg for msg in st.session_state.messages if msg["role"] == "system"]
+
+            # Trim only user and assistant messages, keeping the summary
+            st.session_state.messages = summary_message + user_messages[-5:] + assistant_messages[-5:]
+        
         elif memory_option == "Summary of entire conversation":
-            # Summarize the conversation and keep only the summary.
+            # Summarize the conversation and keep only the summary + summary of entire conversation
             conversation_summary = "\n".join(
-                [f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages]
+                [f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages if msg["role"] != "system"]
             )
-            st.session_state.messages = [{"role": "system", "content": conversation_summary}]
+            st.session_state.messages = [
+                {"role": "system", "content": f"Summary of the URL: {st.session_state['url_summary']}"},
+                {"role": "system", "content": conversation_summary}
+            ]
+        
         elif memory_option == "Last 5,000 tokens":
             # Ensure that the conversation doesn't exceed 5,000 tokens (simplified).
-            conversation_text = "\n".join([msg["content"] for msg in st.session_state.messages])
+            conversation_text = "\n".join([msg["content"] for msg in st.session_state.messages if msg["role"] != "system"])
             if len(conversation_text) > 5000:
                 st.session_state.messages = st.session_state.messages[-100:]
+            # Keep the URL summary as part of the conversation
+            st.session_state.messages.insert(0, {
+                "role": "system",
+                "content": f"Summary of the URL: {st.session_state['url_summary']}"
+            })
 
         # Generate a response using the OpenAI API.
         stream = client.chat.completions.create(
