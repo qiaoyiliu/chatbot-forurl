@@ -39,19 +39,19 @@ if st.session_state['url_summary']:
     st.write(st.session_state['url_summary'])
 
 # Chat input and response
-user_input = st.text_input("Ask a question")
+user_input = st.text_input("Ask a question", key="input_box")
 if user_input:
     # Append user input to messages
     st.session_state['messages'].append(f"User: {user_input}")
 
-    # Chatbot logic to respond based on the question
+    # Chatbot logic to respond to various questions
     if "where is yellowstone" in user_input.lower():
         response = "Yellowstone is primarily located in Wyoming, USA, with parts extending into Montana and Idaho."
     elif st.session_state['url_summary']:
-        # If URL summary exists, use it to answer other questions
-        response = f"I'm using the URL summary: {st.session_state['url_summary'][:150]}..."  # Use the summary for responses
+        # If URL summary exists, use it to answer more questions
+        response = f"I'm using the URL summary to respond: {st.session_state['url_summary'][:150]}..."
     else:
-        response = "I don't have a summary or specific answer to that question right now."
+        response = "I don't have enough information to answer that question right now."
 
     # Append bot response to messages
     st.session_state['messages'].append(f"Bot: {response}")
