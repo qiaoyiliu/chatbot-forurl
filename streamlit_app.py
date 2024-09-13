@@ -8,9 +8,9 @@ from mistralai import Mistral
 import requests
 from bs4 import BeautifulSoup
 
-st.title("Joy's URL Question Answering for HW2")
+st.title("Joy's URL Chatbot for HW2")
 st.write(
-    "Insert a URL below and ask a question about it – GPT will answer! "
+    "Insert a URL and ask multiple questions about it – GPT will answer! "
     "To use this app, you need to provide an API key."
 )
 
@@ -84,79 +84,91 @@ def display(selected_llm):
     selected_language = st.selectbox('Select your language:', languages)
     st.write(f"You have selected: {selected_language}")
 
-    # Input field for question
-    question = st.text_area(
-        "Now ask a question about the URL content!",
-        placeholder="Can you give me a short summary?",
-        disabled=not question_url,
-    )
-
     if client is None:
         st.info("Please enter API key to continue.")
-    elif question_url and question:
+    elif question_url:
         url_content = read_url_content(question_url)
         if url_content:
-            messages = [
-                {
-                    "role": "user",
-                    "content": f"Respond in {selected_language}. Here's a URL: {url_content} \n\n---\n\n {question}",
-                }
-            ]
+            if "messages" not in st.session_state:
+                st.session_state.messages = []
 
-            # GPT-4o-mini stream response
-            if selected_llm == "gpt-4o-mini":
-                stream = client.chat.completions.create(
-                    model=selected_llm,
-                    max_tokens=250,
-                    messages=messages,
-                    stream=True,
-                    temperature=0.5,
-                )
-                st.write_stream(stream)
+            # Chat interface
+            for message in st.session_state.messages:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
 
-            # GPT-4o-2024-05-13 stream response
-            elif selected_llm == 'gpt-4o-2024-05-13':
-                stream = client.chat.completions.create(
-                    model=selected_llm,
-                    max_tokens=250,
-                    messages=messages,
-                    stream=True,
-                    temperature=0.5,
-                )
-                st.write_stream(stream)
+            if prompt := st.chat_input("Ask something about the URL content!"):
+                st.session_state.messages.append({"role": "user", "content": prompt})
 
-            # Claude-3-opus response
-            elif selected_llm == 'claude-3-opus-20240229':
-                message = client.messages.create(
-                    model=selected_llm,
-                    max_tokens=256,
-                    messages=messages,
-                    temperature=0.5,
-                )
-                data = message.content[0].text
-                st.write(data)
+                # Prepare the messages for the LLM
+                messages = [
+                    {
+                        "role": "user",
+                        "content": f"Respond in {selected_language}. Here's a URL: {url_content} \n\n---\n\n {prompt}",
+                    }
+                ]
 
-            # Mistral-small-latest response
-            elif selected_llm == 'mistral-small-latest':
-                response = client.chat.complete(
-                    model=selected_llm,
-                    max_tokens=250,
-                    messages=messages,
-                    temperature=0.5,
-                )
-                data = response.choices[0].message.content
-                st.write(data)
+                # GPT-4o-mini stream response
+                if selected_llm == "gpt-4o-mini":
+                    stream = client.chat.completions.create(
+                        model=selected_llm,
+                        max_tokens=250,
+                        messages=messages,
+                        stream=True,
+                        temperature=0.5,
+                    )
+                    response_content = "".join([message["choices"][0]["message"]["content"] for message in stream])
+                    st.session_state.messages.append({"role": "assistant", "content": response_content})
 
-            # Mistral-medium-latest response
-            elif selected_llm == 'mistral-medium-latest':
-                response = client.chat.complete(
-                    model=selected_llm,
-                    max_tokens=250,
-                    messages=messages,
-                    temperature=0.5,
-                )
-                data = response.choices[0].message.content
-                st.write(data)
+                # GPT-4o-2024-05-13 stream response
+                elif selected_llm == 'gpt-4o-2024-05-13':
+                    stream = client.chat.completions.create(
+                        model=selected_llm,
+                        max_tokens=250,
+                        messages=messages,
+                        stream=True,
+                        temperature=0.5,
+                    )
+                    response_content = "".join([message["choices"][0]["message"]["content"] for message in stream])
+                    st.session_state.messages.append({"role": "assistant", "content": response_content})
+
+                # Claude-3-opus response
+                elif selected_llm == 'claude-3-opus-20240229':
+                    message = client.messages.create(
+                        model=selected_llm,
+                        max_tokens=256,
+                        messages=messages,
+                        temperature=0.5,
+                    )
+                    response_content = message.content[0].text
+                    st.session_state.messages.append({"role": "assistant", "content": response_content})
+
+                # Mistral-small-latest response
+                elif selected_llm == 'mistral-small-latest':
+                    response = client.chat.complete(
+                        model=selected_llm,
+                        max_tokens=250,
+                        messages=messages,
+                        temperature=0.5,
+                    )
+                    response_content = response.choices[0].message.content
+                    st.session_state.messages.append({"role": "assistant", "content": response_content})
+
+                # Mistral-medium-latest response
+                elif selected_llm == 'mistral-medium-latest':
+                    response = client.chat.complete(
+                        model=selected_llm,
+                        max_tokens=250,
+                        messages=messages,
+                        temperature=0.5,
+                    )
+                    response_content = response.choices[0].message.content
+                    st.session_state.messages.append({"role": "assistant", "content": response_content})
+
+            # Display chat history
+            for message in st.session_state.messages:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
 
 # Sidebar for selecting LLM
 llm_options = [
