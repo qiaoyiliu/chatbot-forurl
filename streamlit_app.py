@@ -119,8 +119,8 @@ def display(selected_llm):
                     )
                     response_content = ""
                     for chunk in stream:
-                        if hasattr(chunk, "choices") and len(chunk.choices) > 0:
-                            response_content += chunk.choices[0].delta.get("content", "")
+                        if hasattr(chunk.choices[0].delta, "content"):
+                            response_content += chunk.choices[0].delta.content
                     st.session_state.messages.append({"role": "assistant", "content": response_content})
 
                 # GPT-4o-2024-05-13 stream response
@@ -134,8 +134,8 @@ def display(selected_llm):
                     )
                     response_content = ""
                     for chunk in stream:
-                        if hasattr(chunk, "choices") and len(chunk.choices) > 0:
-                            response_content += chunk.choices[0].delta.get("content", "")
+                        if hasattr(chunk.choices[0].delta, "content"):
+                            response_content += chunk.choices[0].delta.content
                     st.session_state.messages.append({"role": "assistant", "content": response_content})
 
                 # Claude-3-opus response
