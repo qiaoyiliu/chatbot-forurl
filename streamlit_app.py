@@ -1,17 +1,16 @@
+# Show title and description.
 import streamlit as st
-import requests
+from openai import OpenAI
 from bs4 import BeautifulSoup
-from collections import deque
+import requests
 
-# Initialize session state for messages, URL summary, and short-term memory
-if 'messages' not in st.session_state:
-    st.session_state['messages'] = []
-if 'url_summary' not in st.session_state:
-    st.session_state['url_summary'] = None
-if 'recent_chats' not in st.session_state:
-    st.session_state['recent_chats'] = deque(maxlen=5)  # Store last 5 chats
+st.title("💬 Chatbot")
+st.write(
+    "This is a simple chatbot that uses OpenAI's GPT-4o-mini model to generate responses. "
+    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
+    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
+)
 
-# Function to summarize URL content
 def summarize_url(url):
     try:
         response = requests.get(url)
@@ -22,52 +21,74 @@ def summarize_url(url):
     except Exception as e:
         return "There was an error fetching the URL content."
 
-# Function to respond to user input
-def generate_response(user_input):
-    # Check if the question is related to the URL summary
-    if st.session_state['url_summary'] and user_input.lower() in st.session_state['url_summary'].lower():
-        return f"I'm using the URL summary to respond: {st.session_state['url_summary'][:150]}..."
+# Ask user for their OpenAI API key via st.text_input.
+openai_api_key = st.text_input("OpenAI API Key", type="password")
+if not openai_api_key:
+    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
+else:
+
+    question_url = st.text_area(
+        "Or insert an URL:",
+        placeholder="Copy URL here",
+    )
+
+    st.session_state['url_summary'] = summarize_url(question_url)
+    if st.session_state['url_summary']:
+        st.session_state['messages'].append({
+            "role": "assistant",
+            "content": f"Summary of the URL: {st.session_state['url_summary']}"
+        })
     
-    # Check if the question is related to recent chats
-    for previous_input in st.session_state['recent_chats']:
-        if user_input.lower() in previous_input.lower():
-            return f"I remember from our earlier conversation: {previous_input[:150]}..."
-    
-    # Default response
-    return "I don't have enough information to answer that question right now."
+    # Sidebar for memory management options.
+    memory_option = st.sidebar.radio(
+        "Choose how to store memory:",
+        ("Last 5 questions", "Summary of entire conversation", "Last 5,000 tokens")
+    )
 
-# Sidebar to upload URL
-st.sidebar.title("Chatbot with URL Upload")
-url = st.sidebar.text_input("Enter a URL")
+    # Create an OpenAI client.
+    client = OpenAI(api_key=openai_api_key)
 
-# Summarize and store URL content
-if url:
-    if st.sidebar.button("Summarize URL"):
-        st.session_state['url_summary'] = summarize_url(url)
-        st.sidebar.success("URL successfully summarized!")
+    # Create a session state variable to store the chat messages.
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-# Display chatbot and interactions
-st.title("Chatbot")
-st.write("This chatbot can summarize a URL and answer questions based on the URL content or recent conversation.")
+    # Display the existing chat messages.
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-# If URL summary is available, show it
-if st.session_state['url_summary']:
-    st.write("Summary of the URL:")
-    st.write(st.session_state['url_summary'])
+    # Chat input field for user messages.
+    if prompt := st.chat_input("What is up?"):
+        
+        # Store and display the current prompt.
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-# Chat input and response
-user_input = st.text_input("Ask a question", key="input_box")
-if user_input:
-    # Append user input to messages and recent chats
-    st.session_state['messages'].append(f"User: {user_input}")
-    st.session_state['recent_chats'].append(user_input)
+        # Adjust memory based on the user's selection.
+        if memory_option == "Last 5 questions":
+            # Keep only the last 5 user and assistant messages.
+            st.session_state.messages = st.session_state.messages[-10:]
+        elif memory_option == "Summary of entire conversation":
+            # Summarize the conversation and keep only the summary.
+            conversation_summary = "\n".join(
+                [f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages]
+            )
+            st.session_state.messages = [{"role": "system", "content": conversation_summary}]
+        elif memory_option == "Last 5,000 tokens":
+            # Ensure that the conversation doesn't exceed 5,000 tokens (simplified).
+            conversation_text = "\n".join([msg["content"] for msg in st.session_state.messages])
+            if len(conversation_text) > 5000:
+                st.session_state.messages = st.session_state.messages[-100:]
 
-    # Generate a response
-    response = generate_response(user_input)
+        # Generate a response using the OpenAI API.
+        stream = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
+            stream=True,
+        )
 
-    # Append bot response to messages
-    st.session_state['messages'].append(f"Bot: {response}")
-
-# Display conversation history
-for message in st.session_state['messages']:
-    st.write(message)
+        # Stream the response to the chat.
+        with st.chat_message("assistant"):
+            response = st.write_stream(stream)
+        st.session_state.messages.append({"role": "assistant", "content": response})
