@@ -1,10 +1,9 @@
 import streamlit as st
 from openai import OpenAI
-from anthropic import Anthropic
-from anthropic.types.message import Message  # Assuming this is the correct Anthropic client
-from mistralai import Mistral  # Assuming this is the correct Mistral client
-import requests
+from anthropic import Anthropic  # Assuming this is the correct Anthropic client
+from mistral import Mistral  # Assuming this is the correct Mistral client
 from bs4 import BeautifulSoup
+import requests
 
 # Title
 st.title("💬 Multi-LLM Chatbot with URL Summarization")
@@ -108,45 +107,51 @@ if prompt := st.chat_input("What is up?"):
     messages = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state['messages']]
 
     # Call the selected LLM based on user selection
-    if selected_llm == "gpt-4o-mini":
+    if selected_llm == "gpt-4o-mini" or selected_llm == "gpt-4o":
         stream = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=selected_llm,
             max_tokens=250,
             messages=messages,
             stream=True,
             temperature=0.5,
         )
-        st.write_stream(stream)
 
-    elif selected_llm == "gpt-4o":
-        stream = client.chat.completions.create(
-            model="gpt-4o",
-            max_tokens=250,
-            messages=messages,
-            stream=True,
-            temperature=0.5,
-        )
-        st.write_stream(stream)
+        # Collect the response content from the stream
+        response_content = ""
+        for chunk in stream:
+            response_content += chunk.choices[0].delta.get("content", "")
+        
+        # Display the response content
+        with st.chat_message("assistant"):
+            st.markdown(response_content)
 
     elif selected_llm == 'claude-3-haiku':
+        system_prompt = [msg['content'] for msg in messages if msg['role'] == 'system']
+        conversation = [msg for msg in messages if msg['role'] != 'system']
+        
         message = client.messages.create(
             model='claude-3-haiku-20240307',
             max_tokens=256,
-            messages=messages,
+            messages=conversation,
             temperature=0.5,
+            system=system_prompt[0] if system_prompt else None  # Top-level system parameter
         )
-        stream = message.content[0].text
-        st.write(stream)
+        data = message.content[0].text
+        st.write(data)
 
     elif selected_llm == 'claude-3-opus':
+        system_prompt = [msg['content'] for msg in messages if msg['role'] == 'system']
+        conversation = [msg for msg in messages if msg['role'] != 'system']
+        
         message = client.messages.create(
             model='claude-3-opus-20240229',
             max_tokens=256,
-            messages=messages,
+            messages=conversation,
             temperature=0.5,
+            system=system_prompt[0] if system_prompt else None
         )
-        stream = message.content[0].text
-        st.write(stream)
+        data = message.content[0].text
+        st.write(data)
 
     elif selected_llm == 'mistral-small':
         response = client.chat.complete(
@@ -155,8 +160,8 @@ if prompt := st.chat_input("What is up?"):
             messages=messages,
             temperature=0.5,
         )
-        stream = response.choices[0].message.content
-        st.write(stream)
+        data = response.choices[0].message.content
+        st.write(data)
 
     elif selected_llm == 'mistral-medium':
         response = client.chat.complete(
@@ -165,8 +170,8 @@ if prompt := st.chat_input("What is up?"):
             messages=messages,
             temperature=0.5,
         )
-        stream = response.choices[0].message.content
-        st.write(stream)
+        data = response.choices[0].message.content
+        st.write(data)
 
     # Store the LLM response in session state
-    st.session_state['messages'].append({"role": "assistant", "content": stream})
+    st.session_state['messages'].append({"role": "assistant", "content": response_content})
