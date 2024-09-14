@@ -109,24 +109,24 @@ if prompt := st.chat_input("What is up?"):
 
     # Call the selected LLM based on user selection
     if selected_llm == "gpt-4o-mini":
-        stream = client.chat.completions.create(
+        data = client.chat.completions.create(
             model="gpt-4o-mini",
             max_tokens=250,
             messages=messages,
             stream=True,
             temperature=0.5,
         )
-        st.write_stream(stream)
+        st.write_stream(data)
 
     elif selected_llm == "gpt-4o":
-        stream = client.chat.completions.create(
+        data = client.chat.completions.create(
             model="gpt-4o",
             max_tokens=250,
             messages=messages,
             stream=True,
             temperature=0.5,
         )
-        st.write_stream(stream)
+        st.write_stream(data)
 
     elif selected_llm == 'claude-3-haiku':
         # Move 'system' role to top-level parameter for Anthropic models
