@@ -108,25 +108,28 @@ if prompt := st.chat_input("What is up?"):
     messages = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state['messages']]
 
     # Call the selected LLM based on user selection
-    if selected_llm == "gpt-4o-mini" or selected_llm == "gpt-4o":
+    if selected_llm == "gpt-4o-mini":
         stream = client.chat.completions.create(
-            model=selected_llm,
+            model="gpt-4o-mini",
             max_tokens=250,
             messages=messages,
             stream=True,
             temperature=0.5,
         )
+        st.write_stream(stream)
 
-        # Collect the response content from the stream
-        response_content = ""
-        for chunk in stream:
-            response_content += chunk.choices[0].delta.get("content", "")
-        
-        # Display the response content
-        with st.chat_message("assistant"):
-            st.markdown(response_content)
+    elif selected_llm == "gpt-4o":
+        stream = client.chat.completions.create(
+            model="gpt-4o",
+            max_tokens=250,
+            messages=messages,
+            stream=True,
+            temperature=0.5,
+        )
+        st.write_stream(stream)
 
     elif selected_llm == 'claude-3-haiku':
+        # Move 'system' role to top-level parameter for Anthropic models
         system_prompt = [msg['content'] for msg in messages if msg['role'] == 'system']
         conversation = [msg for msg in messages if msg['role'] != 'system']
         
@@ -175,4 +178,5 @@ if prompt := st.chat_input("What is up?"):
         st.write(data)
 
     # Store the LLM response in session state
-    st.session_state['messages'].append({"role": "assistant", "content": response_content})
+    st.session_state['messages'].append({"role": "assistant", "content": data})
+
