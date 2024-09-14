@@ -1,7 +1,8 @@
 import streamlit as st
 from openai import OpenAI
-from anthropic import Anthropic  # Assuming this is the correct Anthropic client
-from mistral import Mistral  # Assuming this is the correct Mistral client
+from anthropic import Anthropic
+from anthropic.types.message import Message   # Assuming this is the correct Anthropic client
+from mistralai import Mistral  # Assuming this is the correct Mistral client
 from bs4 import BeautifulSoup
 import requests
 
