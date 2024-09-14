@@ -1,15 +1,32 @@
 import streamlit as st
 from openai import OpenAI
-from anthropic import Anthropic  # Assuming this is the correct Anthropic client
-from mistral import Mistral  # Assuming this is the correct Mistral client
+from anthropic import Anthropic
+from anthropic.types.message import Message  # Assuming this is the correct Anthropic client
+from mistralai import Mistral  # Assuming this is the correct Mistral client
 
 # Title
-st.title("💬 Multi-LLM Chatbot")
+st.title("💬 Multi-LLM Chatbot with URL Summarization")
 
-# Sidebar to choose LLM
+# Function to summarize URL content
+def summarize_url(url):
+    try:
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        paragraphs = soup.find_all('p')
+        content = ' '.join([para.text for para in paragraphs[:5]])  # Take first 5 paragraphs
+        return content[:1000]  # Limit summary to 1000 characters
+    except Exception as e:
+        return "There was an error fetching the URL content."
+
+# Sidebar to choose LLM and URL options
 selected_llm = st.sidebar.selectbox(
     "Choose an LLM model:",
     ("gpt-4o-mini", "gpt-4o", "claude-3-haiku", "claude-3-opus", "mistral-small", "mistral-medium")
+)
+
+url_option = st.sidebar.radio(
+    "Choose the number of URLs to summarize:",
+    ("1 URL", "2 URLs")
 )
 
 # Ask for API keys based on selected LLM
@@ -34,16 +51,51 @@ elif selected_llm in ['mistral-small', 'mistral-medium']:
     else:
         st.warning("Please provide Mistral API key")
 
-# Initialize session state for messages
+# Initialize session state for messages and summaries
 if 'messages' not in st.session_state:
     st.session_state['messages'] = []
+if 'url_summary_1' not in st.session_state:
+    st.session_state['url_summary_1'] = None
+if 'url_summary_2' not in st.session_state:
+    st.session_state['url_summary_2'] = None
+if 'summary_added' not in st.session_state:
+    st.session_state['summary_added'] = False
 
-# Display existing chat messages
+# First URL
+question_url_1 = st.text_area("Insert the first URL:", placeholder="Copy the first URL here")
+if question_url_1 and not st.session_state['summary_added']:
+    st.session_state['url_summary_1'] = summarize_url(question_url_1)
+    if st.session_state['url_summary_1']:
+        st.session_state['messages'].insert(0, {
+            "role": "system",
+            "content": f"Summary of the first URL: {st.session_state['url_summary_1']}"
+        })
+        st.session_state['summary_added'] = True
+
+# Handle second URL if selected
+if url_option == "2 URLs":
+    question_url_2 = st.text_area("Insert the second URL:", placeholder="Copy the second URL here")
+    if question_url_2 and not st.session_state.get('summary_added_2', False):
+        st.session_state['url_summary_2'] = summarize_url(question_url_2)
+        if st.session_state['url_summary_2']:
+            st.session_state['messages'].insert(1, {
+                "role": "system",
+                "content": f"Summary of the second URL: {st.session_state['url_summary_2']}"
+            })
+            st.session_state['summary_added_2'] = True
+
+# Sidebar for memory management options
+memory_option = st.sidebar.radio(
+    "Choose how to store memory:",
+    ("Last 5 questions", "Summary of entire conversation", "Last 5,000 tokens")
+)
+
+# Display the existing chat messages
 for message in st.session_state['messages']:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Chat input field
+# Chat input field for user messages
 if prompt := st.chat_input("What is up?"):
     # Append user input to session state
     st.session_state['messages'].append({"role": "user", "content": prompt})
@@ -53,7 +105,7 @@ if prompt := st.chat_input("What is up?"):
     # Prepare messages for the LLM API call
     messages = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state['messages']]
 
-    # Call the selected LLM
+    # Call the selected LLM based on user selection
     if selected_llm == "gpt-4o-mini":
         stream = client.chat.completions.create(
             model="gpt-4o-mini",
