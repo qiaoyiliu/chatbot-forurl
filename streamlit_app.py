@@ -108,25 +108,27 @@ if prompt := st.chat_input("What is up?"):
     messages = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state['messages']]
 
     # Call the selected LLM based on user selection
-    if selected_llm == "gpt-4o-mini":
-        data = client.chat.completions.create(
-            model="gpt-4o-mini",
+    if selected_llm == "gpt-4o-mini" or selected_llm == "gpt-4o":
+    # Initialize an empty string to accumulate the response
+        accumulated_response = ""
+    
+    # Call OpenAI's API and stream the response
+        response = client.chat.completions.create(
+            model=selected_llm,
             max_tokens=250,
             messages=messages,
-            stream=True,
+            stream=True,  # Enable streaming
             temperature=0.5,
         )
-        st.write(data)
 
-    elif selected_llm == "gpt-4o":
-        data = client.chat.completions.create(
-            model="gpt-4o",
-            max_tokens=250,
-            messages=messages,
-            stream=True,
-            temperature=0.5,
-        )
-        st.write(data)
+    # Iterate through the streamed tokens and display them
+        for chunk in response:
+            chunk_text = chunk.choices[0].delta.get("content", "")
+            accumulated_response += chunk_text
+            st.write(chunk_text)  # Write each part of the response
+
+    # Store the full response in session state for memory
+        st.session_state['messages'].append({"role": "assistant", "content": accumulated_response})
 
     elif selected_llm == 'claude-3-haiku':
         # Move 'system' role to top-level parameter for Anthropic models
