@@ -135,8 +135,8 @@ if prompt := st.chat_input("What is up?"):
             messages=messages,
             temperature=0.5,
         )
-        data = message.content[0].text
-        st.write(data)
+        stream = message.content[0].text
+        st.write(stream)
 
     elif selected_llm == 'claude-3-opus':
         message = client.messages.create(
@@ -145,8 +145,8 @@ if prompt := st.chat_input("What is up?"):
             messages=messages,
             temperature=0.5,
         )
-        data = message.content[0].text
-        st.write(data)
+        stream = message.content[0].text
+        st.write(stream)
 
     elif selected_llm == 'mistral-small':
         response = client.chat.complete(
@@ -155,8 +155,8 @@ if prompt := st.chat_input("What is up?"):
             messages=messages,
             temperature=0.5,
         )
-        data = response.choices[0].message.content
-        st.write(data)
+        stream = response.choices[0].message.content
+        st.write(stream)
 
     elif selected_llm == 'mistral-medium':
         response = client.chat.complete(
@@ -165,8 +165,8 @@ if prompt := st.chat_input("What is up?"):
             messages=messages,
             temperature=0.5,
         )
-        data = response.choices[0].message.content
-        st.write(data)
+        stream = response.choices[0].message.content
+        st.write(stream)
 
     # Store the LLM response in session state
-    st.session_state['messages'].append({"role": "assistant", "content": data})
+    st.session_state['messages'].append({"role": "assistant", "content": stream})
