@@ -3,6 +3,8 @@ from openai import OpenAI
 from anthropic import Anthropic
 from anthropic.types.message import Message  # Assuming this is the correct Anthropic client
 from mistralai import Mistral  # Assuming this is the correct Mistral client
+import requests
+from bs4 import BeautifulSoup
 
 # Title
 st.title("💬 Multi-LLM Chatbot with URL Summarization")
