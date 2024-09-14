@@ -116,7 +116,7 @@ if prompt := st.chat_input("What is up?"):
             stream=True,
             temperature=0.5,
         )
-        st.write_stream(data)
+        st.write(data)
 
     elif selected_llm == "gpt-4o":
         data = client.chat.completions.create(
@@ -126,7 +126,7 @@ if prompt := st.chat_input("What is up?"):
             stream=True,
             temperature=0.5,
         )
-        st.write_stream(data)
+        st.write(data)
 
     elif selected_llm == 'claude-3-haiku':
         # Move 'system' role to top-level parameter for Anthropic models
