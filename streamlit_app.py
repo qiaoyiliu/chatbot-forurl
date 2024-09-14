@@ -116,7 +116,8 @@ if prompt := st.chat_input("What is up?"):
             stream=True,
             temperature=0.5,
         )
-        st.write_stream(data)
+        data = message.content[0].text
+        st.write(data)
 
     elif selected_llm == "gpt-4o":
         data = client.chat.completions.create(
