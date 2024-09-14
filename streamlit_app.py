@@ -26,27 +26,50 @@ if not openai_api_key:
     st.info("Please add your OpenAI API key to continue.", icon="🗝️")
 else:
 
-    question_url = st.text_area(
-        "Or insert a URL:",
-        placeholder="Copy URL here",
+    # Sidebar selection for URL upload option (1 or 2 URLs)
+    url_option = st.sidebar.radio(
+        "Choose the number of URLs to summarize:",
+        ("1 URL", "2 URLs")
     )
-    
+
     if 'messages' not in st.session_state:
         st.session_state['messages'] = []
-    if 'url_summary' not in st.session_state:
-        st.session_state['url_summary'] = None
+    if 'url_summary_1' not in st.session_state:
+        st.session_state['url_summary_1'] = None
+    if 'url_summary_2' not in st.session_state:
+        st.session_state['url_summary_2'] = None
     if 'summary_added' not in st.session_state:
         st.session_state['summary_added'] = False
+
+    # First URL
+    question_url_1 = st.text_area(
+        "Insert the first URL:",
+        placeholder="Copy the first URL here",
+    )
     
-    # Summarize URL only once and store it in messages
-    if question_url and not st.session_state['summary_added']:
-        st.session_state['url_summary'] = summarize_url(question_url)
-        if st.session_state['url_summary']:
-            st.session_state['messages'].insert(0, {  # Insert the summary at the start
-                "role": "system",  # Using system role to indicate it's part of memory
-                "content": f"Summary of the URL: {st.session_state['url_summary']}"
+    if question_url_1 and not st.session_state['summary_added']:
+        st.session_state['url_summary_1'] = summarize_url(question_url_1)
+        if st.session_state['url_summary_1']:
+            st.session_state['messages'].insert(0, {  # Insert the first summary at the start
+                "role": "system",
+                "content": f"Summary of the first URL: {st.session_state['url_summary_1']}"
             })
-            st.session_state['summary_added'] = True  # Ensure summary is only added once
+            st.session_state['summary_added'] = True  # Mark the first summary as added
+
+    # Handle second URL if the user selected "2 URLs"
+    if url_option == "2 URLs":
+        question_url_2 = st.text_area(
+            "Insert the second URL:",
+            placeholder="Copy the second URL here",
+        )
+        if question_url_2 and not st.session_state.get('summary_added_2', False):
+            st.session_state['url_summary_2'] = summarize_url(question_url_2)
+            if st.session_state['url_summary_2']:
+                st.session_state['messages'].insert(1, {  # Insert the second summary after the first
+                    "role": "system",
+                    "content": f"Summary of the second URL: {st.session_state['url_summary_2']}"
+                })
+                st.session_state['summary_added_2'] = True  # Mark the second summary as added
     
     # Sidebar for memory management options.
     memory_option = st.sidebar.radio(
@@ -72,34 +95,28 @@ else:
 
         # Adjust memory based on the user's selection.
         if memory_option == "Last 5 questions":
-            # Ensure the summary (system message) remains in memory even when trimming
+            # Keep only the last 5 user and assistant messages.
             user_messages = [msg for msg in st.session_state.messages if msg["role"] == "user"]
             assistant_messages = [msg for msg in st.session_state.messages if msg["role"] == "assistant"]
-            summary_message = [msg for msg in st.session_state.messages if msg["role"] == "system"]
+            system_messages = [msg for msg in st.session_state.messages if msg["role"] == "system"]
 
-            # Trim only user and assistant messages, keeping the summary
-            st.session_state.messages = summary_message + user_messages[-5:] + assistant_messages[-5:]
+            # Trim only user and assistant messages, keeping the system messages (URL summaries)
+            st.session_state.messages = system_messages + user_messages[-5:] + assistant_messages[-5:]
         
         elif memory_option == "Summary of entire conversation":
-            # Summarize the conversation and keep only the summary + summary of entire conversation
+            # Summarize the conversation and keep only the summary.
             conversation_summary = "\n".join(
                 [f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages if msg["role"] != "system"]
             )
-            st.session_state.messages = [
-                {"role": "system", "content": f"Summary of the URL: {st.session_state['url_summary']}"},
-                {"role": "system", "content": conversation_summary}
-            ]
+            st.session_state.messages = system_messages + [{"role": "system", "content": conversation_summary}]
         
         elif memory_option == "Last 5,000 tokens":
             # Ensure that the conversation doesn't exceed 5,000 tokens (simplified).
             conversation_text = "\n".join([msg["content"] for msg in st.session_state.messages if msg["role"] != "system"])
             if len(conversation_text) > 5000:
                 st.session_state.messages = st.session_state.messages[-100:]
-            # Keep the URL summary as part of the conversation
-            st.session_state.messages.insert(0, {
-                "role": "system",
-                "content": f"Summary of the URL: {st.session_state['url_summary']}"
-            })
+            # Keep the system messages (URL summaries)
+            st.session_state.messages = system_messages + st.session_state.messages
 
         # Generate a response using the OpenAI API.
         stream = client.chat.completions.create(
